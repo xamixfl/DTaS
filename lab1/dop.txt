@@ -1,0 +1,1070 @@
+/ Функция для округления по достижении максимального количества цифр
+/*void round_to_max_digits(char *result, int max_digits) 
+{
+    char *dot = strchr(result, '.');
+    if (!dot) return; // нет дробной части
+    
+    char *fraction = dot + 1;
+    int frac_len = strlen(fraction);
+    
+    if (frac_len <= max_digits) return; // не превысили лимит
+    
+    // Округляем на max_digits цифр после запятой
+    if (frac_len > max_digits) 
+    {
+        // Проверяем цифру для округления
+        if (fraction[max_digits] >= '5') 
+        {
+            // Увеличиваем последнюю сохраняемую цифру
+            int pos = max_digits - 1;
+            while (pos >= 0) 
+            {
+                if (fraction[pos] < '9') 
+                {
+                    fraction[pos]++;
+                    break;
+                }
+                else 
+                {
+                    fraction[pos] = '0';
+                    pos--;
+                }
+            }
+            
+            // Если все цифры стали 9, переносим в целую часть
+            if (pos < 0) 
+            {
+                fraction[0] = '\0'; // убираем дробную часть
+                dot[0] = '\0'; // убираем точку
+                
+                // Увеличиваем целую часть
+                char int_part[MAX_LEN];
+                strcpy(int_part, result);
+                int int_len = strlen(int_part);
+                
+                for (int i = int_len - 1; i >= 0; i--) 
+                {
+                    if (int_part[i] < '9') 
+                    {
+                        int_part[i]++;
+                        strcpy(result, int_part);
+                        return;
+                    }
+                    else 
+                    {
+                        int_part[i] = '0';
+                    }
+                }
+                
+                // Если вся целая часть стала 9
+                memmove(result + 1, result, strlen(result) + 1);
+                result[0] = '1';
+            }
+        }
+        
+        // Обрезаем до max_digits цифр
+        fraction[max_digits] = '\0';
+    }
+}
+
+
+int divide_strings(const char *dividend_in,
+                    const char *divisor_in,
+                    char *result)                                                                               // Основная функция деления
+{
+    char divisor[MAX_RESULT], dividend[MAX_RESULT * 2];
+    char rem[MAX_RESULT * 2], prod[MAX_RESULT * 2];
+    char res_digits[MAX_RESULT];
+    int scale = 0, j = 0;
+
+    memset(res_digits, 0, sizeof(res_digits));
+    memset(result, 0, MAX_RESULT);
+
+    for (size_t i = 0; i < strlen(divisor_in); i++)      // обработка делителя (убрать точку)
+    {
+        if (divisor_in[i] == '.') 
+        {
+            scale = strlen(divisor_in) - i - 1;
+            continue;
+        }
+        divisor[j++] = divisor_in[i];
+    }
+
+    divisor[j] = '\0';
+    strcpy(divisor, strip_leading_zeros(divisor));
+    
+    if (strcmp(divisor, "0") == 0)            
+        return ERROR_DIVISION;  
+
+
+    strcpy(dividend, dividend_in);                  // --- делимое: приписать scale нулей ---
+
+    int ld = strlen(dividend);
+    for (int i = 0;i < scale; i++) dividend[ld + i] = '0';
+
+    dividend[ld + scale] = '\0';
+
+    strcpy(dividend, strip_leading_zeros(dividend));
+
+    strcpy(rem, "0");
+    int res_len = 0;
+    int dot_pos = -1;
+    int max_fraction_digits = MAX_RESULT - 20; // Оставляем место для округления
+
+
+    for (size_t i = 0; i < strlen(dividend); i++)               // сначала обрабатываем все цифры целой части делимого
+    { 
+        int lr = strlen(rem);
+        if (!(strcmp(rem, "0") == 0 && dividend[i] == '0')) 
+        {
+            rem[lr] = dividend[i]; 
+            rem[lr + 1] = '\0';
+        } 
+        else 
+        {
+            strcpy(rem, "0");
+            rem[0] = dividend[i]; 
+            rem[1] = '\0';
+        }
+
+        strcpy(rem, strip_leading_zeros(rem));
+
+        int lo = 0, hi = 9, t = 0;
+        while (lo <= hi) 
+        {
+            int mid = (lo + hi) / 2;
+            mul_num_digit(divisor, mid, prod);
+
+            int c = cmp_num(prod, rem);
+            if (c <= 0) 
+            {
+                t = mid; 
+                lo = mid + 1;
+            }
+            else 
+                hi = mid - 1;
+        }
+
+        res_digits[res_len++] = t + '0';
+
+        if (t != 0) 
+        {
+            mul_num_digit(divisor, t, prod);
+            sub_num(rem, prod);
+        }
+    }
+
+    // дробная часть, если нужно (пока остаток !=0 и не достигли 40 цифр)
+    if (res_len == 0)               
+        res_digits[res_len++] = '0';
+
+    if (strcmp(rem, "0") != 0) 
+    {
+        dot_pos = res_len; // ставим точку
+        while (res_len < MAX_RESULT && strcmp(rem, "0") != 0) 
+        {
+            int lr = strlen(rem);
+            rem[lr] = '0'; 
+            rem[lr + 1] = '\0';
+
+            strcpy(rem, strip_leading_zeros(rem));
+
+            int lo = 0, hi = 9, t = 0;
+            while (lo <= hi) 
+            {
+                int mid = (lo + hi) / 2;
+                mul_num_digit(divisor, mid, prod);
+
+                int c = cmp_num(prod, rem);
+                if (c <= 0) 
+                {
+                    t = mid; 
+                    lo = mid + 1;
+                } 
+                else 
+                    hi = mid - 1;
+            }
+
+            if (res_len < MAX_RESULT - 1)
+                res_digits[res_len++] = t + '0';
+
+            if (t != 0) 
+            {
+                mul_num_digit(divisor, t, prod);
+                sub_num(rem, prod);
+            }
+        }
+    }
+
+    // Дробная часть с ограничением и округлением
+    if (res_len == 0)               
+        res_digits[res_len++] = '0';
+
+    if (strcmp(rem, "0") != 0) 
+    {
+        dot_pos = res_len;
+        int fraction_digits = 0;
+        
+        while (fraction_digits < max_fraction_digits && strcmp(rem, "0") != 0) 
+        {
+            int lr = strlen(rem);
+            rem[lr] = '0'; 
+            rem[lr + 1] = '\0';
+            strcpy(rem, strip_leading_zeros(rem));
+
+            int lo = 0, hi = 9, t = 0;
+            while (lo <= hi) 
+            {
+                int mid = (lo + hi) / 2;
+                mul_num_digit(divisor, mid, prod);
+                int c = cmp_num(prod, rem);
+                if (c <= 0) 
+                {
+                    t = mid; 
+                    lo = mid + 1;
+                } 
+                else 
+                    hi = mid - 1;
+            }
+
+            res_digits[res_len++] = t + '0';
+            fraction_digits++;
+
+            if (t != 0) 
+            {
+                mul_num_digit(divisor, t, prod);
+                sub_num(rem, prod);
+            }
+            
+            // Проверяем на периодичность каждые 10 цифр
+            if (fraction_digits % 10 == 0) 
+            {
+                // Собираем временный результат для проверки
+                char temp_result[MAX_RESULT] = {0};
+                int pos = 0;
+                for (int i = 0; i < res_len && pos < MAX_RESULT - 1; i++) 
+                {
+                    if (dot_pos != -1 && i == dot_pos) temp_result[pos++] = '.';
+                    temp_result[pos++] = res_digits[i];
+                }
+                temp_result[pos] = '\0';
+                
+                if (detect_and_round_periodic(temp_result, max_fraction_digits)) 
+                {
+                    // Нашли период - копируем обработанный результат
+                    strcpy(result, temp_result);
+                    return 0;
+                }
+            }
+        }
+        
+        // Если вышли по лимиту цифр, округляем
+        if (strcmp(rem, "0") != 0) 
+        {
+            // Собираем результат для округления
+            char temp_result[MAX_RESULT] = {0};
+            int pos = 0;
+            for (int i = 0; i < res_len && pos < MAX_RESULT - 1; i++) 
+            {
+                if (dot_pos != -1 && i == dot_pos) temp_result[pos++] = '.';
+                temp_result[pos++] = res_digits[i];
+            }
+            temp_result[pos] = '\0';
+            
+            round_to_max_digits(temp_result, max_fraction_digits);
+            strcpy(result, temp_result);
+            return 0;
+        }
+    }
+
+    res_digits[res_len] = '\0';
+
+    // собираем итог
+    int pos = 0;
+    for (int i = 0; i < res_len && pos < MAX_LEN - 1; i++) 
+    {
+        if (dot_pos != -1 && i == dot_pos) result[pos++] = '.';
+        result[pos++] = res_digits[i];
+    }
+
+    result[pos] = '\0';
+
+    strip_trailing_zeros(result);
+
+    return 0;
+}*/
+
+
+
+int divide_strings(const char *dividend_in,
+                    const char *divisor_in,
+                    char *result)
+{
+    char divisor[MAX_RESULT], dividend[MAX_RESULT * 2];
+    char rem[MAX_RESULT * 2], prod[MAX_RESULT * 2];
+    char res_digits[MAX_RESULT];
+    int scale = 0, j = 0;
+
+    memset(res_digits, 0, sizeof(res_digits));
+    memset(result, 0, MAX_RESULT);
+
+    for (size_t i = 0; i < strlen(divisor_in); i++)
+    {
+        if (divisor_in[i] == '.') 
+        {
+            scale = strlen(divisor_in) - i - 1;
+            continue;
+        }
+        divisor[j++] = divisor_in[i];
+    }
+
+    divisor[j] = '\0';
+    strcpy(divisor, strip_leading_zeros(divisor));
+    
+    if (strcmp(divisor, "0") == 0)            
+        return ERROR_DIVISION;  
+
+    strcpy(dividend, dividend_in);
+    int ld = strlen(dividend);
+    for (int i = 0;i < scale; i++) dividend[ld + i] = '0';
+    dividend[ld + scale] = '\0';
+    strcpy(dividend, strip_leading_zeros(dividend));
+
+    strcpy(rem, "0");
+    int res_len = 0;
+    int dot_pos = -1;
+    int max_fraction_digits = MAX_RESULT - 20;
+
+    // Целая часть
+    for (size_t i = 0; i < strlen(dividend); i++)
+    { 
+        int lr = strlen(rem);
+        if (!(strcmp(rem, "0") == 0 && dividend[i] == '0')) 
+        {
+            rem[lr] = dividend[i]; 
+            rem[lr + 1] = '\0';
+        } 
+        else 
+        {
+            strcpy(rem, "0");
+            rem[0] = dividend[i]; 
+            rem[1] = '\0';
+        }
+
+        strcpy(rem, strip_leading_zeros(rem));
+
+        int lo = 0, hi = 9, t = 0;
+        while (lo <= hi) 
+        {
+            int mid = (lo + hi) / 2;
+            mul_num_digit(divisor, mid, prod);
+
+            int c = cmp_num(prod, rem);
+            if (c <= 0) 
+            {
+                t = mid; 
+                lo = mid + 1;
+            }
+            else 
+                hi = mid - 1;
+        }
+
+        res_digits[res_len++] = t + '0';
+
+        if (t != 0) 
+        {
+            mul_num_digit(divisor, t, prod);
+            sub_num(rem, prod);
+        }
+    }
+
+    // Дробная часть
+    if (res_len == 0)               
+        res_digits[res_len++] = '0';
+
+    char final_remainder[MAX_RESULT] = {0};
+    strcpy(final_remainder, rem);
+
+    if (strcmp(rem, "0") != 0) 
+    {
+        dot_pos = res_len;
+        int fraction_digits = 0;
+        
+        while (fraction_digits < max_fraction_digits && strcmp(rem, "0") != 0) 
+        {
+            int lr = strlen(rem);
+            rem[lr] = '0'; 
+            rem[lr + 1] = '\0';
+            strcpy(rem, strip_leading_zeros(rem));
+
+            int lo = 0, hi = 9, t = 0;
+            while (lo <= hi) 
+            {
+                int mid = (lo + hi) / 2;
+                mul_num_digit(divisor, mid, prod);
+                int c = cmp_num(prod, rem);
+                if (c <= 0) 
+                {
+                    t = mid; 
+                    lo = mid + 1;
+                } 
+                else 
+                    hi = mid - 1;
+            }
+
+            res_digits[res_len++] = t + '0';
+            fraction_digits++;
+            strcpy(final_remainder, rem);
+
+            if (t != 0) 
+            {
+                mul_num_digit(divisor, t, prod);
+                sub_num(rem, prod);
+            }
+        }
+    }
+
+    res_digits[res_len] = '\0';
+
+    // Собираем промежуточный результат
+    int pos = 0;
+    for (int i = 0; i < res_len && pos < MAX_LEN - 1; i++) 
+    {
+        if (dot_pos != -1 && i == dot_pos) result[pos++] = '.';
+        result[pos++] = res_digits[i];
+    }
+    result[pos] = '\0';
+
+    // Применяем правильное округление
+    apply_rounding(result, final_remainder, divisor);
+    
+    strip_trailing_zeros(result);
+
+    return 0;
+}
+
+
+void normalize_result(char *num, int *exp) 
+{
+    int len = (int)strlen(num);
+
+    // найти позицию точки (если нет — считаем точку в конце)
+    int dot = -1;
+    for (int i = 0; i < len; ++i) 
+    {
+        if (num[i] == '.') 
+        { 
+            dot = i; 
+            break; 
+        }
+    }
+
+    if (dot == -1) 
+        dot = len;
+
+    int first = -1;
+    for (int i = 0; i < len; ++i) 
+    {
+        if (num[i] == '.') 
+            continue;
+        if (num[i] != '0') 
+        { 
+            first = i; 
+            break; 
+        }
+    }
+
+    if (first == -1) 
+    {
+        strcpy(num, "0.0");
+        *exp = 0;
+        return;
+    }
+
+    if (first < dot)                        // вычисляем экспоненту
+        *exp = dot - first;
+    else              
+        *exp = dot - first + 1;
+
+    char digits[MAX_LEN];                          
+    int di = 0;
+    for (int i = first; i < len && di < MAX_LEN - 2; ++i)       // собираем до MAX_LEN - 2 значащих цифр
+    {
+        if (num[i] == '.') 
+            continue;
+
+        digits[di++] = num[i];
+    }
+
+    digits[di] = '\0';
+
+    num[0] = '0';
+    num[1] = '.';
+    for (int k = 0; k < di; ++k)             // записываем результат "0." + строка цифр
+    {
+        num[2 + k] = digits[k];
+    }        
+    num[2 + di] = '\0';
+
+    strip_trailing_zeros(num);
+}
+
+------------------------------------------------------------------------------------------------------
+#include "bignums.h"
+
+char* strip_leading_zeros(char *s) 
+{
+    while (*s == '0' && s[1] != '\0' && s[1] != '.') s++;
+    return s;
+}
+
+void strip_trailing_zeros(char *s) 
+{
+    char *dot = strchr(s, '.');
+    if (!dot) return;
+
+    char *end = s + strlen(s) - 1;
+    while (end > dot && *end == '0') 
+    {
+        *end = '\0';
+        end--;
+    }
+    if (*end == '.') *end = '\0'; // убрать точку, если дробной части нет
+}
+
+
+int cmp_num(const char *a, const char *b)                                                                            // сравнение двух чисел-строк
+{
+    while (*a == '0' && a[1]) a++;
+    while (*b == '0' && b[1]) b++;
+
+    int la = strlen(a), lb = strlen(b);
+
+    if (la != lb) 
+        return (la < lb) ? -1 : 1;
+
+    return strcmp(a,b) < 0 ? -1 : (strcmp(a,b) > 0 ? 1 : 0);
+}
+
+
+void sub_num(char *a, const char *b)                                                                                   // вычитание: a-b, где a>=b
+{
+    int la = strlen(a);
+    int lb = strlen(b);
+
+    int carry = 0;
+
+    for (int i = 0; i < la; i++) 
+    {
+        int ai = a[la - 1 - i] - '0';
+        int bi = (i < lb) ? b[lb - 1 - i] - '0' : 0;
+        int d = ai - bi - carry;
+        if (d < 0) 
+        {
+            d += 10; 
+            carry = 1; 
+        } 
+        else 
+            carry = 0;
+
+        a[la - 1 - i] = d + '0';
+    }
+
+    char *s = strip_leading_zeros(a);
+    if (s != a) 
+        memmove(a, s, strlen(s) + 1);
+}
+
+
+void mul_num_digit(const char *a, int digit, char *res)                                                                  // умножение строки на цифру
+{
+    if (digit==0) 
+    { 
+        strcpy(res, "0"); 
+        return; 
+    }
+    if (digit == 1) 
+    { 
+        strcpy(res, a); 
+        return; 
+    }
+
+    int la = strlen(a);
+    int carry = 0;
+    char buf[MAX_LEN + 5];
+    buf[la + 1] = '\0';
+
+    for (int i = la - 1; i >= 0; i--)
+    {
+        int prod = (a[i] - '0') * digit + carry;
+        buf[i + 1] = prod % 10 + '0';
+        carry = prod / 10;
+    }
+
+    if (carry) buf[0] = carry + '0';
+    else memmove(buf, buf + 1, la + 1);
+    
+    strcpy(res, strip_leading_zeros(buf));
+}
+
+// Функция для обнаружения и обработки периодической дроби
+int detect_and_round_periodic(char *result, int max_digits) 
+{
+    char *dot = strchr(result, '.');
+    if (!dot) return 0; // нет дробной части
+    
+    char *fraction = dot + 1;
+    int frac_len = strlen(fraction);
+    
+    if (frac_len < max_digits) return 0; // не достигли предела цифр
+    
+    // Ищем повторяющийся период (простейший алгоритм)
+    for (int period_len = 1; period_len <= frac_len / 2; period_len++) 
+    {
+        int is_periodic = 1;
+        for (int i = frac_len - period_len; i < frac_len; i++) 
+        {
+            if (fraction[i] != fraction[i - period_len]) 
+            {
+                is_periodic = 0;
+                break;
+            }
+        }
+        
+        if (is_periodic) 
+        {
+            // Нашли период - округляем
+            int cut_pos = frac_len - period_len;
+            fraction[cut_pos] = '\0';
+            
+            // Проверяем нужно ли увеличить последнюю цифру
+            if (period_len > 0 && fraction[cut_pos - 1] < '9') 
+            {
+                fraction[cut_pos - 1]++;
+            }
+            else if (period_len > 0)
+            {
+                // Перенос разряда
+                int pos = cut_pos - 1;
+                while (pos >= 0 && fraction[pos] == '9') 
+                {
+                    fraction[pos] = '0';
+                    pos--;
+                }
+                if (pos >= 0) 
+                {
+                    fraction[pos]++;
+                }
+                else 
+                {
+                    // Перенос в целую часть
+                    memmove(dot + 1, dot, strlen(dot) + 1);
+                    dot[0] = '1';
+                    dot[1] = '.';
+                }
+            }
+            return 1;
+        }
+    }
+    
+    return 0;
+}
+
+
+void round_to_max_digits(char *result, int max_digits) 
+{
+    char *dot = strchr(result, '.');
+    if (!dot) return; // нет дробной части
+    
+    char *fraction = dot + 1;
+    int frac_len = strlen(fraction);
+    
+    if (frac_len <= max_digits) return; // не превысили лимит
+    
+    // Округляем на max_digits цифр после запятой
+    if (frac_len > max_digits) 
+    {
+        // Проверяем цифру для округления
+        if (fraction[max_digits] >= '5') 
+        {
+            // Увеличиваем последнюю сохраняемую цифру
+            int pos = max_digits - 1;
+            while (pos >= 0) 
+            {
+                if (fraction[pos] < '9') 
+                {
+                    fraction[pos]++;
+                    break;
+                }
+                else 
+                {
+                    fraction[pos] = '0';
+                    pos--;
+                }
+            }
+            
+            // Если все цифры в дробной части стали 0, переносим в целую часть
+            if (pos < 0) 
+            {
+                // Все цифры дробной части стали 0 после округления
+                fraction[0] = '\0'; // убираем дробную часть
+                dot[0] = '\0'; // убираем точку
+                
+                // Увеличиваем целую часть
+                int int_len = dot - result;
+                if (int_len == 0) 
+                {
+                    // Нет целой части (число < 1)
+                    memmove(result + 1, result, strlen(result) + 1);
+                    result[0] = '1';
+                    result[1] = '.';
+                    result[2] = '0';
+                    result[3] = '\0';
+                }
+                else 
+                {
+                    // Есть целая часть
+                    for (int i = int_len - 1; i >= 0; i--) 
+                    {
+                        if (result[i] < '9') 
+                        {
+                            result[i]++;
+                            break;
+                        }
+                        else 
+                        {
+                            result[i] = '0';
+                            if (i == 0) 
+                            {
+                                // Перенос через всю целую часть
+                                memmove(result + 1, result, strlen(result) + 1);
+                                result[0] = '1';
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Обрезаем до max_digits цифр
+        fraction[max_digits] = '\0';
+        
+        // Убираем конечные нули после округления
+        strip_trailing_zeros(result);
+    }
+}
+
+// Функция для правильного округления при делении
+void apply_rounding(char *result, const char *remainder, const char *divisor) 
+{
+    if (strcmp(remainder, "0") == 0) return;
+    
+    char *dot = strchr(result, '.');
+    if (!dot) return;
+    
+    // Проверяем, нужно ли округлять последнюю цифру
+    // Умножаем остаток на 2 и сравниваем с делителем
+    char rem_double[MAX_RESULT * 2];
+    mul_num_digit(remainder, 2, rem_double);
+    
+    if (cmp_num(rem_double, divisor) >= 0) 
+    {
+        // Округляем вверх последнюю цифру дробной части
+        char *fraction = dot + 1;
+        int frac_len = strlen(fraction);
+        
+        if (frac_len > 0) 
+        {
+            int pos = frac_len - 1;
+            while (pos >= 0) 
+            {
+                if (fraction[pos] < '9') 
+                {
+                    fraction[pos]++;
+                    break;
+                }
+                else 
+                {
+                    fraction[pos] = '0';
+                    pos--;
+                }
+            }
+            
+            // Если все цифры дробной части стали 0, переносим в целую часть
+            if (pos < 0) 
+            {
+                fraction[0] = '\0';
+                dot[0] = '\0';
+                
+                // Увеличиваем целую часть
+                int int_len = dot - result;
+                if (int_len == 0) 
+                {
+                    memmove(result + 1, result, strlen(result) + 1);
+                    result[0] = '1';
+                }
+                else 
+                {
+                    for (int i = int_len - 1; i >= 0; i--) 
+                    {
+                        if (result[i] < '9') 
+                        {
+                            result[i]++;
+                            break;
+                        }
+                        else 
+                        {
+                            result[i] = '0';
+                            if (i == 0) 
+                            {
+                                memmove(result + 1, result, strlen(result) + 1);
+                                result[0] = '1';
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+int divide_strings(const char *dividend_in, const char *divisor_in, char *result) {
+    char divisor[MAX_RESULT] = {0};
+    char dividend[MAX_RESULT * 2] = {0};
+    char rem[MAX_RESULT * 2] = {0};
+    char prod[MAX_RESULT * 2] = {0};
+    char res_digits[MAX_RESULT] = {0};
+    
+    // Обрабатываем делитель (убираем точку если есть)
+    int scale = 0, j = 0;
+    for (size_t i = 0; i < strlen(divisor_in); i++) {
+        if (divisor_in[i] == '.') {
+            scale = strlen(divisor_in) - i - 1;
+            continue;
+        }
+        divisor[j++] = divisor_in[i];
+    }
+    divisor[j] = '\0';
+    strcpy(divisor, strip_leading_zeros(divisor));
+    
+    if (strcmp(divisor, "0") == 0) return ERROR_DIVISION;
+    
+    // Подготавливаем делимое (добавляем нули если нужно)
+    strcpy(dividend, dividend_in);
+    int ld = strlen(dividend);
+    for (int i = 0; i < scale; i++) dividend[ld + i] = '0';
+    dividend[ld + scale] = '\0';
+    strcpy(dividend, strip_leading_zeros(dividend));
+    
+    // Начинаем деление
+    strcpy(rem, "0");
+    int res_len = 0;
+    int dot_pos = -1;
+    const int max_digits = 50;
+    
+    // Обрабатываем целую часть
+    for (size_t i = 0; i < strlen(dividend); i++) {
+        int lr = strlen(rem);
+        rem[lr] = dividend[i];
+        rem[lr + 1] = '\0';
+        strcpy(rem, strip_leading_zeros(rem));
+        
+        int digit = 0;
+        for (int d = 9; d >= 0; d--) {
+            mul_num_digit(divisor, d, prod);
+            if (cmp_num(prod, rem) <= 0) {
+                digit = d;
+                break;
+            }
+        }
+        
+        res_digits[res_len++] = digit + '0';
+        
+        if (digit > 0) {
+            mul_num_digit(divisor, digit, prod);
+            sub_num(rem, prod);
+        }
+    }
+    
+    // Обрабатываем дробную часть
+    if (strcmp(rem, "0") != 0) {
+        dot_pos = res_len;
+        int fraction_digits = 0;
+        
+        while (fraction_digits < max_digits && strcmp(rem, "0") != 0) {
+            int lr = strlen(rem);
+            rem[lr] = '0';
+            rem[lr + 1] = '\0';
+            strcpy(rem, strip_leading_zeros(rem));
+            
+            int digit = 0;
+            for (int d = 9; d >= 0; d--) {
+                mul_num_digit(divisor, d, prod);
+                if (cmp_num(prod, rem) <= 0) {
+                    digit = d;
+                    break;
+                }
+            }
+            
+            res_digits[res_len++] = digit + '0';
+            fraction_digits++;
+            
+            if (digit > 0) {
+                mul_num_digit(divisor, digit, prod);
+                sub_num(rem, prod);
+            }
+        }
+        
+        // ОКРУГЛЕНИЕ - КРИТИЧЕСКИ ВАЖНАЯ ЧАСТЬ
+        if (strcmp(rem, "0") != 0) {
+            // Проверяем нужно ли округлять: 2*остаток >= делитель
+            char rem2[MAX_RESULT * 2];
+            mul_num_digit(rem, 2, rem2);
+            
+            if (cmp_num(rem2, divisor) >= 0) {
+                // Округляем вверх
+                int pos = res_len - 1;
+                while (pos >= 0) {
+                    if (res_digits[pos] == '.') {
+                        pos--;
+                        continue;
+                    }
+                    if (res_digits[pos] < '9') {
+                        res_digits[pos]++;
+                        break;
+                    } else {
+                        res_digits[pos] = '0';
+                        pos--;
+                    }
+                }
+                
+                // Если все цифры стали 0 (перенос через все разряды)
+                if (pos < 0) {
+                    memmove(res_digits + 1, res_digits, res_len);
+                    res_digits[0] = '1';
+                    res_len++;
+                    if (dot_pos != -1) dot_pos++;
+                }
+            }
+        }
+    }
+    
+    // Формируем результат
+    int pos = 0;
+    for (int i = 0; i < res_len && pos < MAX_RESULT - 1; i++) {
+        if (dot_pos != -1 && i == dot_pos) {
+            result[pos++] = '.';
+        }
+        result[pos++] = res_digits[i];
+    }
+    result[pos] = '\0';
+    
+    // Убираем конечные нули, но осторожно!
+    strip_trailing_zeros(result);
+    
+    return 0;
+}
+
+
+void normalize_result(char *num, int *exp) 
+{
+    int len = (int)strlen(num);
+
+    // найти позицию точки (если нет — считаем точку в конце)
+    int dot = -1;
+    for (int i = 0; i < len; ++i) 
+    {
+        if (num[i] == '.') 
+        { 
+            dot = i; 
+            break; 
+        }
+    }
+
+    if (dot == -1) 
+        dot = len;
+
+    int first = -1;
+    for (int i = 0; i < len; ++i) 
+    {
+        if (num[i] == '.') 
+            continue;
+        if (num[i] != '0') 
+        { 
+            first = i; 
+            break; 
+        }
+    }
+
+    if (first == -1) 
+    {
+        strcpy(num, "0.0");
+        *exp = 0;
+        return;
+    }
+
+    if (first < dot)                        // вычисляем экспоненту
+        *exp = dot - first;
+    else              
+        *exp = dot - first + 1;
+
+    char digits[MAX_LEN];                          
+    int di = 0;
+    for (int i = first; i < len && di < MAX_LEN - 2; ++i)       // собираем до MAX_LEN - 2 значащих цифр
+    {
+        if (num[i] == '.') 
+            continue;
+
+        digits[di++] = num[i];
+    }
+
+    digits[di] = '\0';
+
+    num[0] = '0';
+    num[1] = '.';
+    for (int k = 0; k < di; ++k)             // записываем результат "0." + строка цифр
+    {
+        num[2 + k] = digits[k];
+    }        
+    num[2 + di] = '\0';
+
+    strip_trailing_zeros(num);
+}
+
+int big_division(bignum_t num1, bignum_t num2, bignum_t *res)                                    // Выполнение функций
+{
+    int exp;
+    normalize_result(num2.mantiss, &exp); // нормализуем до рассчета
+
+    res->negative = num1.negative ^ num2.negative;
+    res->grade = num2.grade * (-1);
+
+    int rc = divide_strings(num1.mantiss, num2.mantiss, res->mantiss);
+    if (rc != 0)
+    {
+        printf("На ноль делить нельзя!\n");
+        return ERROR_DIVISION;
+    }
+
+    int exp_res;
+    normalize_result(res->mantiss, &exp_res);   // нормализуем после
+
+    //printf("%d %d %d \n", num2.grade , exp, exp_res);
+    //res->grade = 0;
+    //printf("%d %d\n", res->grade, exp);
+    res->grade -= exp;     // суммируем степени 10
+    res->grade += exp_res;
+    //printf("%d %d\n", res->grade, exp);
+
+    //printf("%d %d %d \n", res->grade, exp);
+
+    if (abs(res->grade) > MAX_GRADE)
+    {
+        printf("Переполнение.\n");
+        return ERROR_OVERFLOW;
+    }    
+
+    return 0;
+}

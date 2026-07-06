@@ -1,0 +1,14 @@
+digraph AVL {
+    node [fontname="Arial", style=filled, fillcolor=lightgrey];
+    node0x327e6e00 [label="t\n(2) | h=3", shape=record];
+    node0x327e6e00 -> node0x327e6c40 [color=blue];
+    node0x327e6c40 [label="q\n(2) | h=2", shape=record];
+    node0x327e6c40 -> node0x327e6d20 [color=blue];
+    node0x327e6d20 [label="e\n(2) | h=1", shape=record];
+    node0x327e6c40 -> node0x327e6d90 [color=red];
+    node0x327e6d90 [label="r\n(2) | h=1", shape=record];
+    node0x327e6e00 -> node0x327e6cb0 [color=red];
+    node0x327e6cb0 [label="w\n(2) | h=2", shape=record];
+    node0x327e6cb0 -> node0x327e6e70 [color=red];
+    node0x327e6e70 [label="y\n(2) | h=1", shape=record];
+}

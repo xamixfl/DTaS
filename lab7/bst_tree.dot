@@ -1,0 +1,14 @@
+digraph BST {
+    node [fontname="Arial"];
+    node0x327e6c20 [label="q\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+    node0x327e6c20 -> node0x327e6d00 [color=blue];
+    node0x327e6d00 [label="e\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+    node0x327e6c20 -> node0x327e6c90 [color=red];
+    node0x327e6c90 [label="w\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+    node0x327e6c90 -> node0x327e6d70 [color=blue];
+    node0x327e6d70 [label="r\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+    node0x327e6d70 -> node0x327e6de0 [color=red];
+    node0x327e6de0 [label="t\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+    node0x327e6c90 -> node0x327e6e50 [color=red];
+    node0x327e6e50 [label="y\n(2)", shape=record, style=filled, fillcolor=lightgrey];
+}

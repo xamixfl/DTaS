@@ -1,0 +1,15 @@
+graph G {
+    rankdir=LR;
+    node [shape=circle, style=filled, fontname="Arial"];
+    edge [dir=none];
+    0 [fillcolor="lightblue", label="0"];
+    1 [fillcolor="lightblue", label="1"];
+    2 [fillcolor="lightgreen", label="2"];
+    3 [fillcolor="lightgreen", label="3"];
+    4 [fillcolor="lightgreen", label="4"];
+    5 [fillcolor="lightblue", label="5"];
+    0 -- 1;
+    1 -- 5;
+    2 -- 3;
+    2 -- 4;
+}
